@@ -1,0 +1,48 @@
+{
+	http_port {$HTTP_PORT:8080}
+
+	# enable metrics
+	admin 0.0.0.0:2019 {
+	}
+}
+
+:2019 {
+	metrics /metrics
+}
+
+:{$HTTP_PORT:8080} {
+	header {
+		# remove server header and other tech leaking headers
+		-Authorization
+		-server
+		-x-powered-by
+		-x-redirect-by
+	}
+
+	respond /health `{"status": "ok"}` {
+		close
+	}
+
+	@endpoints {
+		not path /health
+		path_regexp endpoints ^/(.*)$
+	}
+
+	handle @endpoints {
+		forward_auth localhost:7080 {
+			uri /token
+			copy_headers {
+				Authorization
+			}
+		}
+		reverse_proxy * {$DATABRICKS_APP_URI:"http://localhost"} {
+			header_up -X-Amzn-Oidc-*
+			header_up Host {upstream_hostport}
+		}
+	}
+
+	log {
+		format json
+	}
+	skip_log /health
+}
