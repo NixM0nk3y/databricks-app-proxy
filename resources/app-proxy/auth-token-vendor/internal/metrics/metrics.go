@@ -9,11 +9,11 @@ type AppMetrics struct {
 }
 
 func (m *AppMetrics) RecordAppHit(label string) {
-	m.RecordHit(label, nil)
+	m.RecordHit(label)
 }
 
 func (m *AppMetrics) RecordAppGauge(label string, value float64) {
-	m.RecordGauge(label, nil, value)
+	m.RecordGauge(label, value)
 }
 
 func NewAppMetrics(scope string) (am *AppMetrics) {

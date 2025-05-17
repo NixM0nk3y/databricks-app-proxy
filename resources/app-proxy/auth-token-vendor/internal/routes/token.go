@@ -156,7 +156,7 @@ func GenerateAccessToken(ctx context.Context) (*TokenResponse, error) {
 	}
 
 	// record a metric
-	metrics.RecordDuration("request", nil, start, finish)
+	metrics.RecordDuration("request", start, finish)
 
 	metrics.RecordAppHit("token_generate")
 
