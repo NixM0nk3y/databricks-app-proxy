@@ -23,6 +23,11 @@
 		close
 	}
 
+	handle /auth/version {
+        rewrite * /version
+		reverse_proxy http://localhost:7080
+	}
+
 	@endpoints {
 		not path /health
 		path_regexp endpoints ^/(.*)$
