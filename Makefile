@@ -26,6 +26,8 @@ export SERVICE_PRINCIPLE_CLIENT_ID ?= "foo"
 export SERVICE_PRINCIPLE_CLIENT_SECRET ?= "bar"
 export WORKSPACE_URI ?= "https://localhost"
 export APP_URI ?= "https://localhost"
+export PROXY_HOSTNAME ?= "app-proxy"
+export DNS_ZONE ?= "example.com"
 
 # Output helpers
 # --------------

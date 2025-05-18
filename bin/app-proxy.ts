@@ -14,6 +14,8 @@ const environment = process.env.ENVIRONMENT ?? "Dev";
 // app configuration
 const workspaceUri = process.env.WORKSPACE_URI ?? "https://localhost";
 const appUri = process.env.APP_URI ?? "https://localhost";
+const hostname = process.env.HOSTNAME ?? "app-proxy";
+const zone = process.env.DNS_ZONE ?? "example.com";
 
 const stack = new AppProxyStack(app, capitalise(tenant) + capitalise(product) + capitalise(environment), {
     tenant: tenant,
@@ -21,6 +23,8 @@ const stack = new AppProxyStack(app, capitalise(tenant) + capitalise(product) + 
     product: product,
     workspaceUri: workspaceUri,
     appUri: appUri,
+    hostname: hostname,
+    zone: zone,
     env: { account: process.env.CDK_DEFAULT_ACCOUNT, region: process.env.CDK_DEFAULT_REGION ?? "eu-west-1" },
 });
 

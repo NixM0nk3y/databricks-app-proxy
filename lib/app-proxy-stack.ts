@@ -8,6 +8,8 @@ export interface AppProxyStackProps extends cdk.StackProps {
     readonly product: string;
     readonly workspaceUri: string;
     readonly appUri: string;
+    readonly hostname: string;
+    readonly zone: string;
 }
 
 export class AppProxyStack extends cdk.Stack {
@@ -20,6 +22,8 @@ export class AppProxyStack extends cdk.Stack {
             product: props.product,
             workspaceUri: props.workspaceUri,
             appUri: props.appUri,
+            hostname: props.hostname,
+            zone: props.zone,
         });
     }
 }

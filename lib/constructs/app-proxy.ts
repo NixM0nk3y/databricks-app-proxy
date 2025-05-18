@@ -15,11 +15,18 @@ import {
 import { StringParameter } from "aws-cdk-lib/aws-ssm";
 import { Vpc, SecurityGroup } from "aws-cdk-lib/aws-ec2";
 import { PolicyStatement, Effect } from "aws-cdk-lib/aws-iam";
-import { ApplicationLoadBalancedFargateService } from "aws-cdk-lib/aws-ecs-patterns";
+import {
+    ApplicationLoadBalancedFargateService,
+    ApplicationLoadBalancedServiceRecordType,
+} from "aws-cdk-lib/aws-ecs-patterns";
 import { LogGroup, RetentionDays } from "aws-cdk-lib/aws-logs";
 import { Secret } from "aws-cdk-lib/aws-secretsmanager";
+import { HostedZone, ARecord, AaaaRecord, RecordTarget } from "aws-cdk-lib/aws-route53";
+import { Certificate, CertificateValidation } from "aws-cdk-lib/aws-certificatemanager";
 
 import config from "../config/constants";
+import { LoadBalancerTarget } from "aws-cdk-lib/aws-route53-targets";
+import { ApplicationProtocol, SslPolicy } from "aws-cdk-lib/aws-elasticloadbalancingv2";
 
 export interface AppProxyProps {
     readonly tenant: string;
@@ -27,6 +34,8 @@ export interface AppProxyProps {
     readonly product: string;
     readonly workspaceUri: string;
     readonly appUri: string;
+    readonly hostname: string;
+    readonly zone: string;
 }
 
 export class AppProxy extends Construct {
@@ -117,7 +126,6 @@ export class AppProxy extends Construct {
         const container = taskDefinition.addContainer("Caddy", {
             image: ContainerImage.fromAsset("./resources/app-proxy", {
                 buildArgs: {
-                    buildArgsKey: "buildArgs",
                     CADDY_VERSION: config.versions.CADDY,
                     GO_VERSION: config.versions.GO,
                     BUILD_DATE: process.env.DATE ?? "19700101",
@@ -164,6 +172,17 @@ export class AppProxy extends Construct {
 
         serviceSG.node.addDependency(vpc);
 
+        const zone = HostedZone.fromLookup(this, "Zone", {
+            domainName: props.zone,
+        });
+
+        const proxyName = `${props.hostname}.${zone.zoneName}`;
+
+        const certificate = new Certificate(this, "SiteCertificate", {
+            domainName: proxyName,
+            validation: CertificateValidation.fromDns(zone),
+        });
+
         // our service cluster
         const loadBalancedFargateService = new ApplicationLoadBalancedFargateService(this, "Service", {
             cluster: cluster,
@@ -179,11 +198,18 @@ export class AppProxy extends Construct {
                     weight: 1,
                 },
             ],
+            protocol: ApplicationProtocol.HTTPS,
+            domainName: proxyName,
+            domainZone: zone,
+            recordType: ApplicationLoadBalancedServiceRecordType.NONE,
+            certificate: certificate,
+            redirectHTTP: true,
             taskDefinition: taskDefinition,
             taskSubnets: {
                 subnets: vpc.privateSubnets,
             },
             loadBalancerName: "AppProxyLB",
+            sslPolicy: SslPolicy.TLS13_RES,
         });
 
         // speed up cluster deploys
@@ -199,6 +225,18 @@ export class AppProxy extends Construct {
         // allow ecs exec to cluster
         const cfnService = loadBalancedFargateService.service.node.defaultChild as CfnService;
         cfnService.enableExecuteCommand = true;
+
+        new ARecord(this, "ProxyAliasRecordA", {
+            zone: zone,
+            recordName: proxyName,
+            target: RecordTarget.fromAlias(new LoadBalancerTarget(loadBalancedFargateService.loadBalancer, {})),
+        });
+
+        new AaaaRecord(this, "ProxyAliasRecordAAAA", {
+            zone: zone,
+            recordName: proxyName,
+            target: RecordTarget.fromAlias(new LoadBalancerTarget(loadBalancedFargateService.loadBalancer, {})),
+        });
 
         new CfnOutput(this, "ProxyURI", {
             value: `${loadBalancedFargateService.loadBalancer.loadBalancerDnsName}`,
