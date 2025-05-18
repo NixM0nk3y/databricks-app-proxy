@@ -9,6 +9,10 @@ ARG BUILD_DATE
 ARG VCS_REF
 
 #
+ENV GOCACHE=/root/.cache/go-build
+RUN --mount=type=cache,target="/root/.cache/go-build"
+
+#
 # Build our go apps ( tokenvendor + supervisord)
 #
 RUN mkdir /app
